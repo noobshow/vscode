@@ -401,7 +401,7 @@ export abstract class AbstractCollapsibleView extends HeaderView {
 
 export abstract class CollapsibleView extends AbstractCollapsibleView {
 
-	private previousSize: number;
+	previousSize: number;
 
 	constructor(opts: ICollapsibleViewOptions) {
 		super(opts);
@@ -555,7 +555,7 @@ export class SplitView implements
 		}
 
 		/**
-		 * Reset size to null. This will layout newly added viees to initial weights.
+		 * Reset size to null. This will layout newly added views to initial weights.
 		 */
 		this.size = null;
 
@@ -599,6 +599,14 @@ export class SplitView implements
 		this.viewFocusNextListeners.splice(index, 0, view.addListener('focusNext', () => index < this.views.length && this.views[index + 1].focus()));
 	}
 
+	updateWeight(view: IView, weight: number) {
+		let index = this.views.indexOf(view);
+		if (index < 0) {
+			return;
+		}
+		this.initialWeights[index] = weight;
+	}
+
 	removeView(view: IView): void {
 		let index = this.views.indexOf(view);
 
@@ -606,6 +614,7 @@ export class SplitView implements
 			return;
 		}
 
+		this.size = null;
 		let deadView = new DeadView(view);
 		this.views[index] = deadView;
 		this.onViewChange(deadView, 0);

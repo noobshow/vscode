@@ -7,6 +7,7 @@ import Event, { Emitter } from 'vs/base/common/event';
 import { IActionRunner } from 'vs/base/common/actions';
 import { IViewletView as IView } from 'vs/workbench/parts/views/browser/views';
 import { ITreeViewDataProvider } from 'vs/workbench/parts/views/common/views';
+import { ContextKeyExpr } from 'vs/platform/contextkey/common/contextkey';
 
 export class ViewLocation {
 
@@ -42,6 +43,8 @@ export interface IViewDescriptor {
 	readonly location: ViewLocation;
 
 	readonly ctor: IViewConstructorSignature;
+
+	readonly when?: ContextKeyExpr;
 
 	readonly order?: number;
 
