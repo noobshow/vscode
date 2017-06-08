@@ -4,8 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import Event, { Emitter } from 'vs/base/common/event';
-import { IActionRunner } from 'vs/base/common/actions';
-import { IViewletView as IView } from 'vs/workbench/parts/views/browser/views';
+import { IViewConstructorSignature } from 'vs/workbench/parts/views/browser/views';
 import { ITreeViewDataProvider } from 'vs/workbench/parts/views/common/views';
 import { ContextKeyExpr } from 'vs/platform/contextkey/common/contextkey';
 
@@ -20,18 +19,6 @@ export class ViewLocation {
 	get id(): string {
 		return this._id;
 	}
-}
-
-export interface IViewOptions {
-	name: string;
-	actionRunner: IActionRunner;
-	collapsed: boolean;
-}
-
-export interface IViewConstructorSignature {
-
-	new (id: string, options: IViewOptions, ...services: { _serviceBrand: any; }[]): IView;
-
 }
 
 export interface IViewDescriptor {

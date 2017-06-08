@@ -26,7 +26,7 @@ import { UntitledEditorInput } from 'vs/workbench/common/editor/untitledEditorIn
 import { IEditorGroupService } from 'vs/workbench/services/group/common/groupService';
 import * as DOM from 'vs/base/browser/dom';
 import { CollapseAction } from 'vs/workbench/browser/viewlet';
-import { CollapsibleViewletView, IViewletViewOptions } from 'vs/workbench/parts/views/browser/views';
+import { CollapsibleView, IViewletViewOptions } from 'vs/workbench/parts/views/browser/views';
 import { FileStat } from 'vs/workbench/parts/files/common/explorerViewModel';
 import { IListService } from 'vs/platform/list/browser/listService';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
@@ -44,12 +44,13 @@ import { IWorkbenchThemeService, IFileIconTheme } from 'vs/workbench/services/th
 import { isLinux } from 'vs/base/common/platform';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { attachListStyler } from 'vs/platform/theme/common/styler';
+import { ViewSizing } from 'vs/base/browser/ui/splitview/splitview';
 
 export interface IExplorerViewOptions extends IViewletViewOptions {
 	viewletState: FileViewletState;
 }
 
-export class ExplorerView extends CollapsibleViewletView {
+export class ExplorerView extends CollapsibleView {
 
 	public static ID: string = 'workbench.explorer.fileView';
 	private static EXPLORER_FILE_CHANGES_REACT_DELAY = 500; // delay in ms to react to file changes to give our internal events a chance to react first
@@ -83,9 +84,8 @@ export class ExplorerView extends CollapsibleViewletView {
 	private settings: any;
 
 	constructor(
-		id: string,
 		options: IExplorerViewOptions,
-		@IMessageService messageService: IMessageService,
+		@IMessageService private messageService: IMessageService,
 		@IContextMenuService contextMenuService: IContextMenuService,
 		@IInstantiationService private instantiationService: IInstantiationService,
 		@IEditorGroupService private editorGroupService: IEditorGroupService,
@@ -101,7 +101,7 @@ export class ExplorerView extends CollapsibleViewletView {
 		@IWorkbenchThemeService private themeService: IWorkbenchThemeService,
 		@IEnvironmentService private environmentService: IEnvironmentService
 	) {
-		super(options.actionRunner, options.collapsed, nls.localize('explorerSection', "Files Explorer Section"), messageService, keybindingService, contextMenuService);
+		super({ ...options, ariaHeaderLabel: nls.localize('explorerSection', "Files Explorer Section"), sizing: ViewSizing.Flexible }, keybindingService, contextMenuService);
 
 		this.settings = options.viewletSettings;
 		this.viewletState = options.viewletState;

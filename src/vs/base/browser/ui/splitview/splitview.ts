@@ -9,7 +9,6 @@ import 'vs/css!./splitview';
 import lifecycle = require('vs/base/common/lifecycle');
 import ee = require('vs/base/common/eventEmitter');
 import types = require('vs/base/common/types');
-import objects = require('vs/base/common/objects');
 import dom = require('vs/base/browser/dom');
 import numbers = require('vs/base/common/numbers');
 import sash = require('vs/base/browser/ui/sash/sash');
@@ -240,10 +239,9 @@ export abstract class HeaderView extends View {
 }
 
 export interface ICollapsibleViewOptions {
-	ariaHeaderLabel?: string;
-	fixedSize?: number;
-	minimumSize?: number;
-	headerSize?: number;
+	sizing: ViewSizing;
+	ariaHeaderLabel: string;
+	bodySize?: number;
 	initialState?: CollapsibleState;
 }
 
@@ -260,12 +258,42 @@ export abstract class AbstractCollapsibleView extends HeaderView {
 	private headerClickListener: lifecycle.IDisposable;
 	private headerKeyListener: lifecycle.IDisposable;
 	private focusTracker: dom.IFocusTracker;
+	private _bodySize: number;
+	private readonly viewSizing: ViewSizing;
+
+	previousSize: number = null;
 
 	constructor(opts: ICollapsibleViewOptions) {
 		super(opts);
+		this.viewSizing = opts.sizing;
+		this.ariaHeaderLabel = opts.ariaHeaderLabel;
 
-		this.ariaHeaderLabel = opts && opts.ariaHeaderLabel;
+		this.setBodySize(types.isUndefined(opts.bodySize) ? 22 : opts.bodySize);
 		this.changeState(types.isUndefined(opts.initialState) ? CollapsibleState.EXPANDED : opts.initialState);
+	}
+
+	set bodySize(bodySize: number) {
+		this._bodySize = bodySize;
+		this.updateSize();
+	}
+
+	setBodySize(bodySize: number) {
+		this._bodySize = bodySize;
+		this.updateSize();
+	}
+
+	private updateSize() {
+		if (this.viewSizing === ViewSizing.Fixed) {
+			this.setFixed(this.state === CollapsibleState.EXPANDED ? this._bodySize + this.headerSize : this.headerSize);
+		} else {
+			if (this.state === CollapsibleState.EXPANDED) {
+				this._minimumSize = this.previousSize || (this._bodySize + this.headerSize);
+				this.setFlexible(this._minimumSize);
+			} else {
+				this.previousSize = this.size;
+				this.setFixed(this.headerSize);
+			}
+		}
 	}
 
 	render(container: HTMLElement, orientation: Orientation): void {
@@ -377,6 +405,7 @@ export abstract class AbstractCollapsibleView extends HeaderView {
 		}
 
 		this.layoutHeader();
+		this.updateSize();
 	}
 
 	dispose(): void {
@@ -396,55 +425,6 @@ export abstract class AbstractCollapsibleView extends HeaderView {
 		}
 
 		super.dispose();
-	}
-}
-
-export abstract class CollapsibleView extends AbstractCollapsibleView {
-
-	previousSize: number;
-
-	constructor(opts: ICollapsibleViewOptions) {
-		super(opts);
-		this.previousSize = null;
-	}
-
-	protected changeState(state: CollapsibleState): void {
-		super.changeState(state);
-
-		if (state === CollapsibleState.EXPANDED) {
-			this.setFlexible(this.previousSize || this._minimumSize);
-		} else {
-			this.previousSize = this.size;
-			this.setFixed();
-		}
-	}
-}
-
-export interface IFixedCollapsibleViewOptions extends ICollapsibleViewOptions {
-	expandedBodySize?: number;
-}
-
-export abstract class FixedCollapsibleView extends AbstractCollapsibleView {
-
-	private _expandedBodySize: number;
-
-	constructor(opts: IFixedCollapsibleViewOptions) {
-		super(objects.mixin({ sizing: ViewSizing.Fixed }, opts));
-		this._expandedBodySize = types.isUndefined(opts.expandedBodySize) ? 22 : opts.expandedBodySize;
-	}
-
-	get fixedSize(): number { return this.state === CollapsibleState.EXPANDED ? this.expandedSize : this.headerSize; }
-	private get expandedSize(): number { return this.expandedBodySize + this.headerSize; }
-
-	get expandedBodySize(): number { return this._expandedBodySize; }
-	set expandedBodySize(size: number) {
-		this._expandedBodySize = size;
-		this.setFixed(this.fixedSize);
-	}
-
-	protected changeState(state: CollapsibleState): void {
-		super.changeState(state);
-		this.setFixed(this.fixedSize);
 	}
 }
 

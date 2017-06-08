@@ -20,9 +20,8 @@ import { DelayedDragHandler } from 'vs/base/browser/dnd';
 import { ToolBar } from 'vs/base/browser/ui/toolbar/toolbar';
 import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
-import { IMessageService } from 'vs/platform/message/common/message';
-import { CollapsibleView, CollapsibleState, FixedCollapsibleView, IView, SplitView } from 'vs/base/browser/ui/splitview/splitview';
-import { ViewsRegistry, ViewLocation, IViewDescriptor, IViewOptions } from 'vs/workbench/parts/views/browser/viewsRegistry';
+import { AbstractCollapsibleView, CollapsibleState, IView as IBaseView, SplitView, ViewSizing } from 'vs/base/browser/ui/splitview/splitview';
+import { ViewsRegistry, ViewLocation, IViewDescriptor } from 'vs/workbench/parts/views/browser/viewsRegistry';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
@@ -30,34 +29,68 @@ import { IStorageService, StorageScope } from 'vs/platform/storage/common/storag
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { IContextKeyService } from 'vs/platform/contextkey/common/contextkey';
 
-export interface IViewletViewOptions extends IViewOptions {
-	viewletSettings: any;
-}
+export interface IViewOptions {
 
-export interface IViewletView extends IView, IThemable {
 	id: string;
-	create(): TPromise<void>;
-	setVisible(visible: boolean): TPromise<void>;
-	getActions(): IAction[];
-	getSecondaryActions(): IAction[];
-	getActionItem(action: IAction): IActionItem;
-	showHeader(): boolean;
-	hideHeader(): boolean;
-	shutdown(): void;
-	focusBody(): void;
-	isExpanded(): boolean;
-	expand(): void;
-	collapse(): void;
-	getOptimalWidth(): number;
+
+	name: string;
+
+	actionRunner: IActionRunner;
+
+	collapsed: boolean;
+
 }
 
-/**
- * The AdaptiveCollapsibleViewletView can grow with the content inside dynamically.
- */
-export abstract class AdaptiveCollapsibleViewletView extends FixedCollapsibleView implements IViewletView {
+export interface IViewConstructorSignature {
+
+	new (options: IViewOptions, ...services: { _serviceBrand: any; }[]): IView;
+
+}
+
+export interface IView extends IBaseView, IThemable {
+
+	id: string;
+
+	create(): TPromise<void>;
+
+	setVisible(visible: boolean): TPromise<void>;
+
+	getActions(): IAction[];
+
+	getSecondaryActions(): IAction[];
+
+	getActionItem(action: IAction): IActionItem;
+
+	showHeader(): boolean;
+
+	hideHeader(): boolean;
+
+	focusBody(): void;
+
+	isExpanded(): boolean;
+
+	expand(): void;
+
+	collapse(): void;
+
+	getOptimalWidth(): number;
+
+	shutdown(): void;
+}
+
+export interface ICollapsibleViewOptions extends IViewOptions {
+
+	sizing: ViewSizing;
+
+	initialBodySize?: number;
+
+}
+
+export abstract class CollapsibleView extends AbstractCollapsibleView implements IView {
 
 	readonly id: string;
 
+	protected viewName: string;
 	protected treeContainer: HTMLElement;
 	protected tree: ITree;
 	protected toDispose: IDisposable[];
@@ -69,157 +102,20 @@ export abstract class AdaptiveCollapsibleViewletView extends FixedCollapsibleVie
 	private dragHandler: DelayedDragHandler;
 
 	constructor(
-		actionRunner: IActionRunner,
-		initialBodySize: number,
-		collapsed: boolean,
-		private viewName: string,
+		options: ICollapsibleViewOptions,
 		protected keybindingService: IKeybindingService,
 		protected contextMenuService: IContextMenuService
 	) {
 		super({
-			expandedBodySize: initialBodySize,
-			initialState: collapsed ? CollapsibleState.COLLAPSED : CollapsibleState.EXPANDED,
-			ariaHeaderLabel: viewName,
-			headerSize: 22,
+			ariaHeaderLabel: options.name,
+			sizing: options.sizing,
+			bodySize: options.initialBodySize ? options.initialBodySize : 4 * 22,
+			initialState: options.collapsed ? CollapsibleState.COLLAPSED : CollapsibleState.EXPANDED,
 		});
 
-		this.actionRunner = actionRunner;
-		this.toDispose = [];
-	}
-
-	protected changeState(state: CollapsibleState): void {
-		updateTreeVisibility(this.tree, state === CollapsibleState.EXPANDED);
-
-		super.changeState(state);
-	}
-
-	public create(): TPromise<void> {
-		return TPromise.as(null);
-	}
-
-	public renderHeader(container: HTMLElement): void {
-
-		// Tool bar
-		this.toolBar = new ToolBar($('div.actions').appendTo(container).getHTMLElement(), this.contextMenuService, {
-			orientation: ActionsOrientation.HORIZONTAL,
-			actionItemProvider: (action) => this.getActionItem(action),
-			ariaLabel: nls.localize('viewToolbarAriaLabel', "{0} actions", this.viewName),
-			getKeyBinding: (action) => this.keybindingService.lookupKeybinding(action.id)
-		});
-		this.toolBar.actionRunner = this.actionRunner;
-		this.updateActions();
-
-		// Expand on drag over
-		this.dragHandler = new DelayedDragHandler(container, () => {
-			if (!this.isExpanded()) {
-				this.expand();
-			}
-		});
-	}
-
-	protected updateActions(): void {
-		this.toolBar.setActions(prepareActions(this.getActions()), prepareActions(this.getSecondaryActions()))();
-	}
-
-	protected renderViewTree(container: HTMLElement): HTMLElement {
-		return renderViewTree(container);
-	}
-
-	public getViewer(): ITree {
-		return this.tree;
-	}
-
-	public setVisible(visible: boolean): TPromise<void> {
-		if (this.isVisible !== visible) {
-			this.isVisible = visible;
-			updateTreeVisibility(this.tree, visible && this.state === CollapsibleState.EXPANDED);
-		}
-
-		return TPromise.as(null);
-	}
-
-	public focusBody(): void {
-		focus(this.tree);
-	}
-
-	protected reveal(element: any, relativeTop?: number): TPromise<void> {
-		return reveal(this.tree, element, relativeTop);
-	}
-
-	protected layoutBody(size: number): void {
-		this.treeContainer.style.height = size + 'px';
-		this.tree.layout(size);
-	}
-
-	public getActions(): IAction[] {
-		return [];
-	}
-
-	public getSecondaryActions(): IAction[] {
-		return [];
-	}
-
-	public getActionItem(action: IAction): IActionItem {
-		return null;
-	}
-
-	public shutdown(): void {
-		// Subclass to implement
-	}
-
-	public getOptimalWidth(): number {
-		return 0;
-	}
-
-	public dispose(): void {
-		this.isDisposed = true;
-		this.treeContainer = null;
-		this.tree.dispose();
-
-		this.dragHandler.dispose();
-
-		this.toDispose = dispose(this.toDispose);
-
-		if (this.toolBar) {
-			this.toolBar.dispose();
-		}
-
-		super.dispose();
-	}
-}
-
-export abstract class CollapsibleViewletView extends CollapsibleView implements IViewletView {
-
-	readonly id: string;
-
-	protected treeContainer: HTMLElement;
-	protected tree: ITree;
-	protected toDispose: IDisposable[];
-	protected isVisible: boolean;
-	protected toolBar: ToolBar;
-	protected actionRunner: IActionRunner;
-	protected isDisposed: boolean;
-
-	private dragHandler: DelayedDragHandler;
-
-	constructor(
-		actionRunner: IActionRunner,
-		collapsed: boolean,
-		private viewName: string,
-		protected messageService: IMessageService,
-		protected keybindingService: IKeybindingService,
-		protected contextMenuService: IContextMenuService,
-		headerSize?: number,
-		minimumSize?: number
-	) {
-		super({
-			minimumSize: minimumSize === void 0 ? 5 * 22 : minimumSize,
-			initialState: collapsed ? CollapsibleState.COLLAPSED : CollapsibleState.EXPANDED,
-			ariaHeaderLabel: viewName,
-			headerSize
-		});
-
-		this.actionRunner = actionRunner;
+		this.id = options.id;
+		this.viewName = options.name;
+		this.actionRunner = options.actionRunner;
 		this.toDispose = [];
 	}
 
@@ -374,6 +270,12 @@ function reveal(tree: ITree, element: any, relativeTop?: number): TPromise<void>
 	return tree.reveal(element, relativeTop);
 }
 
+export interface IViewletViewOptions extends IViewOptions {
+
+	viewletSettings: any;
+
+}
+
 export interface IViewState {
 	collapsed: boolean;
 	size: number;
@@ -382,10 +284,10 @@ export interface IViewState {
 export class ComposedViewsViewlet extends Viewlet {
 
 	protected viewletContainer: HTMLElement;
-	protected lastFocusedView: IViewletView;
+	protected lastFocusedView: IView;
 
 	private splitView: SplitView;
-	protected views: IViewletView[];
+	protected views: IView[];
 	private dimension: Dimension;
 	private viewletSettings: any;
 
@@ -418,7 +320,7 @@ export class ComposedViewsViewlet extends Viewlet {
 
 		this.viewletContainer = DOM.append(parent.getHTMLElement(), DOM.$(''));
 		this.splitView = this._register(new SplitView(this.viewletContainer));
-		this._register(this.splitView.onFocus((view: IViewletView) => this.lastFocusedView = view));
+		this._register(this.splitView.onFocus((view: IView) => this.lastFocusedView = view));
 
 		return this.addViews(ViewsRegistry.getViews(this.location))
 			.then(() => {
@@ -487,6 +389,7 @@ export class ComposedViewsViewlet extends Viewlet {
 			let viewState = this.viewsStates.get(viewDescriptor.id);
 			let index = viewsInOrder.indexOf(viewDescriptor);
 			const view = this.createView(viewDescriptor, {
+				id: viewDescriptor.id,
 				name: viewDescriptor.name,
 				actionRunner: this.getActionRunner(),
 				collapsed: viewState ? viewState.collapsed : true,
@@ -598,15 +501,15 @@ export class ComposedViewsViewlet extends Viewlet {
 		}, new Map<string, IViewState>());
 	}
 
-	protected createView(viewDescriptor: IViewDescriptor, options: IViewletViewOptions): IViewletView {
-		return this.instantiationService.createInstance(viewDescriptor.ctor, viewDescriptor.id, options);
+	protected createView(viewDescriptor: IViewDescriptor, options: IViewletViewOptions): IView {
+		return this.instantiationService.createInstance(viewDescriptor.ctor, options);
 	}
 
-	protected getView(id: string): IViewletView {
+	protected getView(id: string): IView {
 		return this.views.filter(view => view.id === id)[0];
 	}
 
-	private getViewState(view: IViewletView): IViewState {
+	private getViewState(view: IView): IViewState {
 		const collapsed = !view.isExpanded();
 		const size = collapsed && view instanceof CollapsibleView ? view.previousSize : view.size;
 		return {

@@ -15,9 +15,9 @@ import { IAction } from 'vs/base/common/actions';
 import { prepareActions } from 'vs/workbench/browser/actions';
 import { IHighlightEvent, ITree } from 'vs/base/parts/tree/browser/tree';
 import { Tree } from 'vs/base/parts/tree/browser/treeImpl';
-import { CollapsibleState } from 'vs/base/browser/ui/splitview/splitview';
+import { CollapsibleState, ViewSizing } from 'vs/base/browser/ui/splitview/splitview';
 import { CollapseAction } from 'vs/workbench/browser/viewlet';
-import { CollapsibleViewletView, AdaptiveCollapsibleViewletView, IViewletViewOptions } from 'vs/workbench/parts/views/browser/views';
+import { CollapsibleView, IViewletViewOptions } from 'vs/workbench/parts/views/browser/views';
 import { IDebugService, State, IBreakpoint, IExpression, CONTEXT_BREAKPOINTS_FOCUSED, CONTEXT_WATCH_EXPRESSIONS_FOCUSED, CONTEXT_VARIABLES_FOCUSED } from 'vs/workbench/parts/debug/common/debug';
 import { Expression, Variable, ExceptionBreakpoint, FunctionBreakpoint, Thread, StackFrame, Breakpoint, ThreadAndProcessIds } from 'vs/workbench/parts/debug/common/debugModel';
 import * as viewer from 'vs/workbench/parts/debug/electron-browser/debugViewer';
@@ -26,7 +26,6 @@ import { IContextMenuService } from 'vs/platform/contextview/browser/contextView
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { MenuId } from 'vs/platform/actions/common/actions';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
-import { IMessageService } from 'vs/platform/message/common/message';
 import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
 import { IContextKeyService, IContextKey } from 'vs/platform/contextkey/common/contextkey';
 import { IListService } from 'vs/platform/list/browser/listService';
@@ -43,7 +42,7 @@ function renderViewTree(container: HTMLElement): HTMLElement {
 const $ = builder.$;
 const twistiePixels = 20;
 
-export class VariablesView extends CollapsibleViewletView {
+export class VariablesView extends CollapsibleView {
 
 	private static MEMENTO = 'variablesview.memento';
 	private onFocusStackFrameScheduler: RunOnceScheduler;
@@ -51,9 +50,7 @@ export class VariablesView extends CollapsibleViewletView {
 	private settings: any;
 
 	constructor(
-		readonly id: string,
 		options: IViewletViewOptions,
-		@IMessageService messageService: IMessageService,
 		@IContextMenuService contextMenuService: IContextMenuService,
 		@ITelemetryService private telemetryService: ITelemetryService,
 		@IDebugService private debugService: IDebugService,
@@ -63,7 +60,7 @@ export class VariablesView extends CollapsibleViewletView {
 		@IListService private listService: IListService,
 		@IThemeService private themeService: IThemeService
 	) {
-		super(options.actionRunner, !!options.viewletSettings[VariablesView.MEMENTO], nls.localize('variablesSection', "Variables Section"), messageService, keybindingService, contextMenuService);
+		super({ ...options, sizing: ViewSizing.Flexible, ariaHeaderLabel: nls.localize('variablesSection', "Variables Section") }, keybindingService, contextMenuService);
 
 		this.settings = options.viewletSettings;
 		this.variablesFocusedContext = CONTEXT_VARIABLES_FOCUSED.bindTo(contextKeyService);
@@ -153,7 +150,7 @@ export class VariablesView extends CollapsibleViewletView {
 	}
 }
 
-export class WatchExpressionsView extends CollapsibleViewletView {
+export class WatchExpressionsView extends CollapsibleView {
 
 	private static MEMENTO = 'watchexpressionsview.memento';
 	private onWatchExpressionsUpdatedScheduler: RunOnceScheduler;
@@ -162,9 +159,7 @@ export class WatchExpressionsView extends CollapsibleViewletView {
 	private settings: any;
 
 	constructor(
-		readonly id: string,
 		options: IViewletViewOptions,
-		@IMessageService messageService: IMessageService,
 		@IContextMenuService contextMenuService: IContextMenuService,
 		@IDebugService private debugService: IDebugService,
 		@IKeybindingService keybindingService: IKeybindingService,
@@ -173,7 +168,7 @@ export class WatchExpressionsView extends CollapsibleViewletView {
 		@IListService private listService: IListService,
 		@IThemeService private themeService: IThemeService
 	) {
-		super(options.actionRunner, !!options.viewletSettings[WatchExpressionsView.MEMENTO], nls.localize('expressionsSection', "Expressions Section"), messageService, keybindingService, contextMenuService);
+		super({ ...options, ariaHeaderLabel: nls.localize('expressionsSection', "Expressions Section"), sizing: ViewSizing.Flexible }, keybindingService, contextMenuService);
 		this.settings = options.viewletSettings;
 
 		this.toDispose.push(this.debugService.getModel().onDidChangeWatchExpressions(we => {
@@ -254,7 +249,7 @@ export class WatchExpressionsView extends CollapsibleViewletView {
 	}
 }
 
-export class CallStackView extends CollapsibleViewletView {
+export class CallStackView extends CollapsibleView {
 
 	private static MEMENTO = 'callstackview.memento';
 	private pauseMessage: builder.Builder;
@@ -263,9 +258,7 @@ export class CallStackView extends CollapsibleViewletView {
 	private settings: any;
 
 	constructor(
-		readonly id: string,
 		options: IViewletViewOptions,
-		@IMessageService messageService: IMessageService,
 		@IContextMenuService contextMenuService: IContextMenuService,
 		@ITelemetryService private telemetryService: ITelemetryService,
 		@IDebugService private debugService: IDebugService,
@@ -274,7 +267,7 @@ export class CallStackView extends CollapsibleViewletView {
 		@IListService private listService: IListService,
 		@IThemeService private themeService: IThemeService
 	) {
-		super(options.actionRunner, !!options.viewletSettings[CallStackView.MEMENTO], nls.localize('callstackSection', "Call Stack Section"), messageService, keybindingService, contextMenuService);
+		super({ ...options, ariaHeaderLabel: nls.localize('callstackSection', "Call Stack Section"), sizing: ViewSizing.Flexible }, keybindingService, contextMenuService);
 		this.settings = options.viewletSettings;
 
 		// Create scheduler to prevent unnecessary flashing of tree when reacting to changes
@@ -391,7 +384,7 @@ export class CallStackView extends CollapsibleViewletView {
 	}
 }
 
-export class BreakpointsView extends AdaptiveCollapsibleViewletView {
+export class BreakpointsView extends CollapsibleView {
 
 	private static MAX_VISIBLE_FILES = 9;
 	private static MEMENTO = 'breakopintsview.memento';
@@ -399,7 +392,6 @@ export class BreakpointsView extends AdaptiveCollapsibleViewletView {
 	private settings: any;
 
 	constructor(
-		readonly id: string,
 		options: IViewletViewOptions,
 		@IContextMenuService contextMenuService: IContextMenuService,
 		@IDebugService private debugService: IDebugService,
@@ -409,9 +401,12 @@ export class BreakpointsView extends AdaptiveCollapsibleViewletView {
 		@IListService private listService: IListService,
 		@IThemeService private themeService: IThemeService
 	) {
-		super(options.actionRunner, BreakpointsView.getExpandedBodySize(
-			debugService.getModel().getBreakpoints().length + debugService.getModel().getFunctionBreakpoints().length + debugService.getModel().getExceptionBreakpoints().length),
-			!!options.viewletSettings[BreakpointsView.MEMENTO], nls.localize('breakpointsSection', "Breakpoints Section"), keybindingService, contextMenuService);
+		super({
+			...options,
+			ariaHeaderLabel: nls.localize('breakpointsSection', "Breakpoints Section"),
+			sizing: ViewSizing.Fixed, initialBodySize: BreakpointsView.getExpandedBodySize(
+				debugService.getModel().getBreakpoints().length + debugService.getModel().getFunctionBreakpoints().length + debugService.getModel().getExceptionBreakpoints().length)
+		}, keybindingService, contextMenuService);
 
 		this.settings = options.viewletSettings;
 		this.breakpointsFocusedContext = CONTEXT_BREAKPOINTS_FOCUSED.bindTo(contextKeyService);
@@ -511,8 +506,8 @@ export class BreakpointsView extends AdaptiveCollapsibleViewletView {
 
 	private onBreakpointsChange(): void {
 		const model = this.debugService.getModel();
-		this.expandedBodySize = BreakpointsView.getExpandedBodySize(
-			model.getBreakpoints().length + model.getExceptionBreakpoints().length + model.getFunctionBreakpoints().length);
+		this.setBodySize(BreakpointsView.getExpandedBodySize(
+			model.getBreakpoints().length + model.getExceptionBreakpoints().length + model.getFunctionBreakpoints().length));
 
 		if (this.tree) {
 			this.tree.refresh();
