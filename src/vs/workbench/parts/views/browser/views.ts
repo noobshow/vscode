@@ -120,7 +120,7 @@ export abstract class CollapsibleView extends AbstractCollapsibleView implements
 	}
 
 	protected changeState(state: CollapsibleState): void {
-		updateTreeVisibility(this.tree, state === CollapsibleState.EXPANDED);
+		this.updateTreeVisibility(this.tree, state === CollapsibleState.EXPANDED);
 
 		super.changeState(state);
 	}
@@ -154,7 +154,10 @@ export abstract class CollapsibleView extends AbstractCollapsibleView implements
 	}
 
 	protected renderViewTree(container: HTMLElement): HTMLElement {
-		return renderViewTree(container);
+		const treeContainer = document.createElement('div');
+		container.appendChild(treeContainer);
+
+		return treeContainer;
 	}
 
 	public getViewer(): ITree {
@@ -164,18 +167,22 @@ export abstract class CollapsibleView extends AbstractCollapsibleView implements
 	public setVisible(visible: boolean): TPromise<void> {
 		if (this.isVisible !== visible) {
 			this.isVisible = visible;
-			updateTreeVisibility(this.tree, visible && this.state === CollapsibleState.EXPANDED);
+			this.updateTreeVisibility(this.tree, visible && this.state === CollapsibleState.EXPANDED);
 		}
 
 		return TPromise.as(null);
 	}
 
 	public focusBody(): void {
-		focus(this.tree);
+		this.focusTree();
 	}
 
 	protected reveal(element: any, relativeTop?: number): TPromise<void> {
-		return reveal(this.tree, element, relativeTop);
+		if (!this.tree) {
+			return TPromise.as(null); // return early if viewlet has not yet been created
+		}
+
+		return this.tree.reveal(element, relativeTop);
 	}
 
 	public layoutBody(size: number): void {
@@ -220,54 +227,39 @@ export abstract class CollapsibleView extends AbstractCollapsibleView implements
 
 		super.dispose();
 	}
-}
 
-function updateTreeVisibility(tree: ITree, isVisible: boolean): void {
-	if (!tree) {
-		return;
+	private updateTreeVisibility(tree: ITree, isVisible: boolean): void {
+		if (!tree) {
+			return;
+		}
+
+		if (isVisible) {
+			$(tree.getHTMLElement()).show();
+		} else {
+			$(tree.getHTMLElement()).hide(); // make sure the tree goes out of the tabindex world by hiding it
+		}
+
+		if (isVisible) {
+			tree.onVisible();
+		} else {
+			tree.onHidden();
+		}
 	}
 
-	if (isVisible) {
-		$(tree.getHTMLElement()).show();
-	} else {
-		$(tree.getHTMLElement()).hide(); // make sure the tree goes out of the tabindex world by hiding it
+	private focusTree(): void {
+		if (!this.tree) {
+			return; // return early if viewlet has not yet been created
+		}
+
+		// Make sure the current selected element is revealed
+		const selection = this.tree.getSelection();
+		if (selection.length > 0) {
+			this.reveal(selection[0], 0.5).done(null, errors.onUnexpectedError);
+		}
+
+		// Pass Focus to Viewer
+		this.tree.DOMFocus();
 	}
-
-	if (isVisible) {
-		tree.onVisible();
-	} else {
-		tree.onHidden();
-	}
-}
-
-function focus(tree: ITree): void {
-	if (!tree) {
-		return; // return early if viewlet has not yet been created
-	}
-
-	// Make sure the current selected element is revealed
-	const selection = tree.getSelection();
-	if (selection.length > 0) {
-		reveal(tree, selection[0], 0.5).done(null, errors.onUnexpectedError);
-	}
-
-	// Pass Focus to Viewer
-	tree.DOMFocus();
-}
-
-function renderViewTree(container: HTMLElement): HTMLElement {
-	const treeContainer = document.createElement('div');
-	container.appendChild(treeContainer);
-
-	return treeContainer;
-}
-
-function reveal(tree: ITree, element: any, relativeTop?: number): TPromise<void> {
-	if (!tree) {
-		return TPromise.as(null); // return early if viewlet has not yet been created
-	}
-
-	return tree.reveal(element, relativeTop);
 }
 
 export interface IViewletViewOptions extends IViewOptions {
@@ -277,7 +269,9 @@ export interface IViewletViewOptions extends IViewOptions {
 }
 
 export interface IViewState {
+
 	collapsed: boolean;
+
 	size: number;
 }
 
@@ -355,7 +349,7 @@ export class ComposedViewsViewlet extends Viewlet {
 
 		for (const view of this.views) {
 			let viewState = this.viewsStates.get(view.id);
-			if (viewState && view.size !== viewState.size) {
+			if (!viewState || view.size !== viewState.size || !view.isExpanded() !== viewState.collapsed) {
 				viewState = this.getViewState(view);
 				this.viewsStates.set(view.id, viewState);
 				this.splitView.updateWeight(view, viewState.size);
@@ -392,16 +386,13 @@ export class ComposedViewsViewlet extends Viewlet {
 				id: viewDescriptor.id,
 				name: viewDescriptor.name,
 				actionRunner: this.getActionRunner(),
-				collapsed: viewState ? viewState.collapsed : true,
+				collapsed: viewState ? viewState.collapsed : void 0,
 				viewletSettings: this.viewletSettings
 			});
 			toCreate.push(view);
 
 			this.views.splice(index, 0, view);
 			attachHeaderViewStyler(view, this.themeService);
-			if (view instanceof CollapsibleView && viewState && viewState.size) {
-				view.previousSize = Math.max(viewState.size, 1);
-			}
 			this.splitView.addView(view, viewState && viewState.size ? Math.max(viewState.size, 1) : viewDescriptor.size, index);
 		}
 

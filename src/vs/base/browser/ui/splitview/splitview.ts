@@ -259,9 +259,8 @@ export abstract class AbstractCollapsibleView extends HeaderView {
 	private headerKeyListener: lifecycle.IDisposable;
 	private focusTracker: dom.IFocusTracker;
 	private _bodySize: number;
+	private _previousSize: number = null;
 	private readonly viewSizing: ViewSizing;
-
-	previousSize: number = null;
 
 	constructor(opts: ICollapsibleViewOptions) {
 		super(opts);
@@ -277,6 +276,10 @@ export abstract class AbstractCollapsibleView extends HeaderView {
 		this.updateSize();
 	}
 
+	get previousSize(): number {
+		return this._previousSize;
+	}
+
 	setBodySize(bodySize: number) {
 		this._bodySize = bodySize;
 		this.updateSize();
@@ -286,11 +289,12 @@ export abstract class AbstractCollapsibleView extends HeaderView {
 		if (this.viewSizing === ViewSizing.Fixed) {
 			this.setFixed(this.state === CollapsibleState.EXPANDED ? this._bodySize + this.headerSize : this.headerSize);
 		} else {
+			this._minimumSize = this._bodySize + this.headerSize;
+			this._previousSize = !this.previousSize || this._previousSize < this._minimumSize ? this._minimumSize : this._previousSize;
 			if (this.state === CollapsibleState.EXPANDED) {
-				this._minimumSize = this.previousSize || (this._bodySize + this.headerSize);
-				this.setFlexible(this._minimumSize);
+				this.setFlexible(this._previousSize || this._minimumSize);
 			} else {
-				this.previousSize = this.size;
+				this._previousSize = this.size || this._minimumSize;
 				this.setFixed(this.headerSize);
 			}
 		}

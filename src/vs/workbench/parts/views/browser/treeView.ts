@@ -55,7 +55,7 @@ export class TreeView extends CollapsibleView {
 		@IExtensionService private extensionService: IExtensionService,
 		@ICommandService private commandService: ICommandService
 	) {
-		super({ ...options, ariaHeaderLabel: options.name, sizing: ViewSizing.Flexible }, keybindingService, contextMenuService);
+		super({ ...options, ariaHeaderLabel: options.name, sizing: ViewSizing.Flexible, collapsed: options.collapsed === void 0 ? true : options.collapsed }, keybindingService, contextMenuService);
 		this.menus = this.instantiationService.createInstance(Menus, this.id);
 		this.viewFocusContext = this.contextKeyService.createKey<boolean>(this.id, void 0);
 		this.menus.onDidChangeTitle(() => this.updateActions(), this, this.disposables);
