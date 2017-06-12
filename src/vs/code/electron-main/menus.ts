@@ -907,11 +907,12 @@ export class CodeMenu {
 
 	private setTaskMenu(taskMenu: Electron.Menu): void {
 		const runTask = this.createMenuItem(nls.localize({ key: 'miRunTask', comment: ['&& denotes a mnemonic'] }, "&&Run Task..."), 'workbench.action.tasks.runTask');
-		const restartTask = this.createMenuItem(nls.localize({ key: 'miRestartTask', comment: ['&& denotes a mnemonic'] }, "&&Restart Task"), 'workbench.action.tasks.restartTask');
+		const restartTask = this.createMenuItem(nls.localize({ key: 'miRestartTask', comment: ['&& denotes a mnemonic'] }, "R&&estart Task"), 'workbench.action.tasks.restartTask');
 		const terminateTask = this.createMenuItem(nls.localize({ key: 'miTerminateTask', comment: ['&& denotes a mnemonic'] }, "&&Terminate Task"), 'workbench.action.tasks.terminate');
 		const buildTask = this.createMenuItem(nls.localize({ key: 'miBuildTask', comment: ['&& denotes a mnemonic'] }, "&&Build Task"), 'workbench.action.tasks.build');
-		const testTask = this.createMenuItem(nls.localize({ key: 'miTestTask', comment: ['&& denotes a mnemonic'] }, "&&Test Task"), 'workbench.action.tasks.test');
+		const testTask = this.createMenuItem(nls.localize({ key: 'miTestTask', comment: ['&& denotes a mnemonic'] }, "Test T&&ask"), 'workbench.action.tasks.test');
 		const showTaskLog = this.createMenuItem(nls.localize({ key: 'miShowTaskLog', comment: ['&& denotes a mnemonic'] }, "&&Show Task Log"), 'workbench.action.tasks.showLog');
+
 		[
 			showTaskLog,
 			runTask,
@@ -919,7 +920,6 @@ export class CodeMenu {
 			terminateTask,
 			buildTask,
 			testTask
-
 		].forEach(item => taskMenu.append(item));
 	}
 
